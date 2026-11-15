@@ -284,9 +284,14 @@ function render(){
 }
 $('list').onclick=e=>{
   const d=e.target.closest('[data-d]'),m=e.target.closest('[data-e]');
-  if(d&&confirm('Supprimer cette journée ?')){const id=d.dataset.d;entries=entries.filter(x=>x.id!==id);dirty=dirty.filter(x=>x!==id);deleted.push(id);save();render();sync()}
+  if(d)del(d.dataset.d);
   if(m)edit(m.dataset.e);
 };
+function del(id){
+  if(!confirm('Supprimer cette journée ?'))return;
+  entries=entries.filter(x=>x.id!==id);dirty=dirty.filter(x=>x!==id);deleted.push(id);
+  save();render();sync();toast('🗑️ Journée supprimée');
+}
 function edit(id){
   const x=entries.find(y=>y.id===id);editId=x.id;$('date').value=x.date;$('start').value=x.start;$('end').value=x.end;$('pause').value=x.pause;
   $('editBanner').style.display=$('cancel').style.display='block';$('save').textContent='Mettre à jour';calc();tab('add');
@@ -342,13 +347,14 @@ function renderCal(){
   setH($('calGrid'),h);
   if(!selDay||!selDay.startsWith(pre)){setH($('calDetail'),'');return}
   const day=new Date(selDay+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-  setH($('calDetail'),by[selDay]?by[selDay].map(x=>`<div class="box"><b style="text-transform:capitalize">${day}</b><br>Horaires : ${x.start} → ${x.end}<br>Pause : ${x.pause} min<br>Heures travaillées : <b>${fmt(x.minutes)}</b> <button class="sec" data-e="${x.id}">✏️ Modifier</button></div>`).join(''):`<div class="box"><b style="text-transform:capitalize">${day}</b><br>Aucune journée enregistrée. <button class="sec" data-new>＋ Saisir</button></div>`);
+  setH($('calDetail'),by[selDay]?by[selDay].map(x=>`<div class="box"><b style="text-transform:capitalize">${day}</b><br>Horaires : ${x.start} → ${x.end}<br>Pause : ${x.pause} min<br>Heures travaillées : <b>${fmt(x.minutes)}</b> <br><button class="sec" data-e="${x.id}">✏️ Modifier</button><button class="sec" data-d="${x.id}" style="color:var(--bad)">🗑️ Supprimer</button></div>`).join(''):`<div class="box"><b style="text-transform:capitalize">${day}</b><br>Aucune journée enregistrée. <button class="sec" data-new>＋ Saisir</button></div>`);
 }
 $('prev').onclick=()=>{cal.setMonth(cal.getMonth()-1);selDay=null;popCal=true;renderCal()};
 $('next').onclick=()=>{cal.setMonth(cal.getMonth()+1);selDay=null;popCal=true;renderCal()};
 $('calGrid').onclick=e=>{const b=e.target.closest('.day');if(b){selDay=b.dataset.k;renderCal()}};
 $('calDetail').onclick=e=>{
   const m=e.target.closest('[data-e]');if(m)return edit(m.dataset.e);
+  const d=e.target.closest('[data-d]');if(d)return del(d.dataset.d);
   if(e.target.closest('[data-new]')){reset();tab('add');$('date').value=selDay}
 };
 const SB_URL='https://ujwgmquwvsvmkmcxbaiq.supabase.co',SB_KEY='sb_publishable_4d6F9EL9xA9sUuG_0SmGjA_5Q2823HG';
