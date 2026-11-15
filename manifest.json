@@ -1,6 +1,6 @@
 {
-  "name": "Suivi d'heures",
-  "short_name": "Mes heures",
+  "name": "Pointage intérim particulier",
+  "short_name": "Pointage",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

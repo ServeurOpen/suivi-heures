@@ -3,25 +3,57 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Suivi d'heures</title>
-<meta name="theme-color" content="#1e293b">
+<title>Pointage intérim particulier</title>
+<meta name="theme-color" content="#2563eb">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Mes heures">
+<meta name="apple-mobile-web-app-title" content="Pointage intérim">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
+<script>
+// thème choisi avant l'affichage (pas de flash) : choix mémorisé, sinon celui du téléphone
+try{document.documentElement.dataset.theme=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light')}catch(e){document.documentElement.dataset.theme='light'}
+</script>
 <style>
-:root{--bg:#f1f5f9;--card:#fff;--txt:#0f172a;--mut:#64748b;--acc:#2563eb;--acc2:#1d4ed8;--ok:#16a34a;--bad:#dc2626;--line:#e2e8f0}
-@media(prefers-color-scheme:dark){:root{--bg:#0b1220;--card:#162033;--txt:#f1f5f9;--mut:#94a3b8;--acc:#3b82f6;--acc2:#60a5fa;--line:#26334d}}
+:root{color-scheme:light;--bg:#eef2f9;--card:rgba(255,255,255,.78);--txt:#0f172a;--mut:#64748b;--acc:#2563eb;--acc2:#1d4ed8;--ok:#16a34a;--bad:#dc2626;--line:#e2e8f0;--blob:.45}
+:root[data-theme=dark]{color-scheme:dark;--bg:#080d19;--card:rgba(22,32,51,.72);--txt:#f1f5f9;--mut:#94a3b8;--acc:#3b82f6;--acc2:#60a5fa;--line:#2a3855;--blob:.22}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom))}
-main{max-width:480px;margin:0 auto}
-h1{font-size:22px;margin:18px 0 12px}
-.card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.total{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;text-align:center}
-.total .big{font-size:44px;font-weight:700;letter-spacing:-1px}
-.total small{opacity:.85}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;transition:background-color .4s,color .4s}
+h1{font-size:24px;margin:0}
+
+/* fond animé */
+#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+#bg i{position:absolute;border-radius:50%;filter:blur(70px);opacity:var(--blob);will-change:transform;transition:opacity .4s}
+#bg i:nth-child(1){width:60vmax;height:60vmax;background:#60a5fa;left:-20vmax;top:-20vmax;animation:b1 18s ease-in-out infinite alternate}
+#bg i:nth-child(2){width:50vmax;height:50vmax;background:#a78bfa;right:-18vmax;top:25%;animation:b2 22s ease-in-out infinite alternate}
+#bg i:nth-child(3){width:55vmax;height:55vmax;background:#34d399;left:5%;bottom:-28vmax;animation:b3 26s ease-in-out infinite alternate}
+@keyframes b1{to{transform:translate(35vmax,25vmax) scale(1.25)}}
+@keyframes b2{to{transform:translate(-30vmax,-15vmax) scale(.85)}}
+@keyframes b3{to{transform:translate(25vmax,-25vmax) scale(1.2)}}
+
+#theme{position:fixed;top:calc(10px + env(safe-area-inset-top));right:14px;z-index:30;width:42px;height:42px;border-radius:50%;border:0;background:var(--card);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+
+/* page d'inscription plein écran */
+#gate{position:fixed;inset:0;z-index:10;overflow:auto;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px 16px;text-align:center}
+#gate .brand p{color:var(--mut);margin:8px 0 24px}
+.logo{font-size:64px;animation:float 3s ease-in-out infinite}
+.gcard{width:100%;max-width:400px;text-align:left}
+.gcard h2{text-transform:none}
+
+/* application */
+#app{max-width:480px;margin:0 auto;padding:calc(58px + env(safe-area-inset-top)) 16px calc(100px + env(safe-area-inset-bottom))}
+.tab{display:none}
+.tab.on{display:block;animation:fade .35s ease-out}
+.hello{margin:0 0 16px}.hello small{color:var(--acc);font-weight:600}.hello p{margin:4px 0 0;color:var(--mut)}
+
+.card{background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);transition:background-color .4s}
+.total{background:linear-gradient(135deg,var(--acc),#7c3aed,var(--acc2));color:#fff;text-align:center}
+.total .big{font-size:48px;font-weight:700;letter-spacing:-1px}
+.total small{opacity:.9}
+.tiles{display:flex;gap:12px}.tiles .card{flex:1;text-align:center}
+.tiles small,#lastCard small{color:var(--mut)}
+.tiles b{display:block;font-size:24px}
 label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
 input[type=date],input[type=time],input[type=number],input[type=email],input[type=password]{width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--txt)}
 .row{display:flex;gap:10px}.row>div{flex:1}
@@ -32,7 +64,7 @@ input[type=date],input[type=time],input[type=number],input[type=email],input[typ
 .result b{display:block;font-size:30px;color:var(--ok)}
 .result b.neg{color:var(--bad)}
 button.main{width:100%;padding:14px;border:0;border-radius:12px;background:var(--acc);color:#fff;font:inherit;font-weight:600;margin-top:8px}
-button.main:active{background:var(--acc2)}
+button.main.out{background:var(--bad)}
 button.sec{background:none;border:0;color:var(--mut);font:inherit;font-size:14px;padding:8px}
 h2{font-size:15px;margin:0 0 8px;display:flex;justify-content:space-between;color:var(--mut);text-transform:capitalize}
 .item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
@@ -50,15 +82,28 @@ h2{font-size:15px;margin:0 0 8px;display:flex;justify-content:space-between;colo
 .day.sel{box-shadow:0 0 0 2px var(--txt)}
 #calDetail{margin-top:12px;font-size:15px}
 #calDetail .box{border-top:1px solid var(--line);padding:10px 0}
+.empty{text-align:center;color:var(--mut);padding:20px 0}
+
+/* barre d'onglets */
+#nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,480px);z-index:20;display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:22px 22px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.12)}
+#nav button{flex:1;background:none;border:0;color:var(--mut);font:inherit;font-size:11px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
+#nav button span{font-size:22px;transition:transform .3s}
+#nav button.on{color:var(--acc);font-weight:600}
+#nav button.on span{animation:hop .45s}
+#ind{position:absolute;top:0;left:0;width:20%;height:3px;display:flex;justify-content:center;transition:transform .4s cubic-bezier(.3,1.2,.5,1)}
+#ind::before{content:"";width:34px;height:3px;border-radius:3px;background:var(--acc)}
+
 /* animations */
 @keyframes up{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes pop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes drift{from{background-position:0 50%}to{background-position:100% 50%}}
 @keyframes bump{40%{transform:scale(1.18)}}
+@keyframes hop{40%{transform:translateY(-7px) scale(1.22)}}
+@keyframes float{50%{transform:translateY(-10px) rotate(6deg)}}
 @keyframes toast{0%{opacity:0;transform:translate(-50%,30px)}12%,85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,30px)}}
 .card{animation:up .55s cubic-bezier(.2,.8,.2,1) both}
-#app>:nth-child(2){animation-delay:.07s}#app>:nth-child(3){animation-delay:.14s}#app>:nth-child(4){animation-delay:.21s}
+.tab .card:nth-child(3),.tab>button{animation-delay:.1s}.tab .card:nth-child(4){animation-delay:.18s}
 .total{background-size:220% 220%;animation:up .55s cubic-bezier(.2,.8,.2,1) both,drift 8s ease-in-out infinite alternate}
 #list .card{animation:fade .35s ease-out both}
 button,.chip{transition:transform .15s,background-color .2s,box-shadow .2s,opacity .2s}
@@ -70,65 +115,97 @@ button:active{transform:scale(.94)}
 .pop .day{animation:pop .4s cubic-bezier(.3,1.4,.5,1) both;animation-delay:calc(var(--i)*14ms)}
 #calDetail .box{animation:fade .3s ease-out both}
 .bump{animation:bump .35s ease-out}
-#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));background:var(--ok);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));z-index:40;background:var(--ok);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 #toast.show{animation:toast 2s ease both}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-.empty{text-align:center;color:var(--mut);padding:20px 0}
-footer{text-align:center}
 </style>
 </head>
 <body>
-<main>
-<h1>⏱️ Mes heures</h1>
+<div id="bg"><i></i><i></i><i></i></div>
+<button id="theme" aria-label="Mode sombre / clair">🌙</button>
 
-<div class="card" id="gate">
-  <h2><span id="gtitle">Créer un compte</span></h2>
-  <input type="email" id="em" placeholder="E-mail" autocomplete="username">
-  <input type="password" id="pw" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password" style="margin-top:8px">
-  <button class="main" id="go">S'inscrire</button>
-  <button class="sec" id="swap" style="width:100%">Déjà un compte ? Se connecter</button>
-  <div id="gmsg" style="color:var(--mut);font-size:14px;text-align:center"></div>
-</div>
+<section id="gate">
+  <div class="brand">
+    <div class="logo">⏱️</div>
+    <h1>Pointage intérim particulier</h1>
+    <p>Vos heures, toujours sous contrôle.</p>
+  </div>
+  <div class="card gcard">
+    <h2><span id="gtitle">Créer un compte</span></h2>
+    <input type="email" id="em" placeholder="E-mail" autocomplete="username">
+    <input type="password" id="pw" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password" style="margin-top:8px">
+    <button class="main" id="go">S'inscrire</button>
+    <button class="sec" id="swap" style="width:100%">Déjà un compte ? Se connecter</button>
+    <div id="gmsg" style="color:var(--mut);font-size:14px;text-align:center"></div>
+  </div>
+</section>
 
 <div id="app" style="display:none">
 
-<div class="card total">
-  <small>Total cumulé</small>
-  <div class="big" id="grand">0h00</div>
-  <small id="count">0 jour</small>
-</div>
-
-<div class="card">
-  <div class="nav"><button id="prev" aria-label="Mois précédent">‹</button><span><span id="calTitle"></span> · <span id="calSum"></span></span><button id="next" aria-label="Mois suivant">›</button></div>
-  <div class="cal" id="calGrid"></div>
-  <div id="calDetail"></div>
-</div>
-
-<div class="card" id="form">
-  <div id="editBanner" style="display:none;color:var(--acc);font-size:14px;margin-bottom:4px">✏️ Modification en cours</div>
-  <label for="date">Date</label>
-  <input type="date" id="date">
-  <div class="row">
-    <div><label for="start">Arrivée</label><input type="time" id="start" value="08:00"></div>
-    <div><label for="end">Départ</label><input type="time" id="end" value="17:00"></div>
+<section class="tab on" id="t-home">
+  <div class="hello"><small>Pointage intérim particulier</small><h1>Bonjour 👋</h1><p>Vos heures, toujours sous contrôle.</p></div>
+  <div class="card total">
+    <small>Total cumulé</small>
+    <div class="big" id="grand">0h00</div>
+    <small id="count">0 jour</small>
   </div>
-  <label>Pause</label>
-  <div class="chips" id="chips"></div>
-  <input type="number" id="pause" min="0" step="5" inputmode="numeric" style="margin-top:8px" placeholder="Minutes de pause">
-  <div class="result">Heures travaillées<b id="res">0h00</b><span id="detail"></span></div>
-  <button class="main" id="save">Enregistrer la journée</button>
-  <button class="sec" id="cancel" style="display:none;width:100%">Annuler la modification</button>
+  <div class="tiles">
+    <div class="card"><small>Cette semaine</small><b id="wTot">0h00</b></div>
+    <div class="card"><small>Ce mois-ci</small><b id="mTot">0h00</b></div>
+  </div>
+  <div class="card" id="lastCard"><small>Dernière journée</small><div id="last">–</div></div>
+  <button class="main" id="goAdd">＋ Pointer une journée</button>
+</section>
+
+<section class="tab" id="t-add">
+  <div class="card" id="form">
+    <div id="editBanner" style="display:none;color:var(--acc);font-size:14px;margin-bottom:4px">✏️ Modification en cours</div>
+    <label for="date">Date</label>
+    <input type="date" id="date">
+    <div class="row">
+      <div><label for="start">Arrivée</label><input type="time" id="start" value="08:00"></div>
+      <div><label for="end">Départ</label><input type="time" id="end" value="17:00"></div>
+    </div>
+    <label>Pause</label>
+    <div class="chips" id="chips"></div>
+    <input type="number" id="pause" min="0" step="5" inputmode="numeric" style="margin-top:8px" placeholder="Minutes de pause">
+    <div class="result">Heures travaillées<b id="res">0h00</b><span id="detail"></span></div>
+    <button class="main" id="save">Enregistrer la journée</button>
+    <button class="sec" id="cancel" style="display:none;width:100%">Annuler la modification</button>
+  </div>
+</section>
+
+<section class="tab" id="t-cal">
+  <div class="card">
+    <div class="nav"><button id="prev" aria-label="Mois précédent">‹</button><span><span id="calTitle"></span> · <span id="calSum"></span></span><button id="next" aria-label="Mois suivant">›</button></div>
+    <div class="cal" id="calGrid"></div>
+    <div id="calDetail"></div>
+  </div>
+</section>
+
+<section class="tab" id="t-hist">
+  <div id="list"></div>
+</section>
+
+<section class="tab" id="t-me">
+  <div class="card">
+    <h2><span>Mon compte</span></h2>
+    <div id="who" style="word-break:break-all"></div>
+    <div style="color:var(--mut);font-size:14px;margin-top:4px" id="sync"></div>
+  </div>
+  <button class="main" id="csv">Exporter mes heures en CSV</button>
+  <button class="main out" id="logout">Se déconnecter</button>
+</section>
+
+<nav id="nav">
+  <i id="ind"></i>
+  <button class="on" data-tab="home"><span>🏠</span>Accueil</button>
+  <button data-tab="add"><span>➕</span>Pointer</button>
+  <button data-tab="cal"><span>📅</span>Calendrier</button>
+  <button data-tab="hist"><span>📋</span>Historique</button>
+  <button data-tab="me"><span>👤</span>Compte</button>
+</nav>
 </div>
-
-<div id="list"></div>
-
-<div id="logged" style="text-align:center;color:var(--mut);font-size:14px"><span id="sync"></span> · <button class="sec" id="logout">Déconnexion</button></div>
-
-<footer>
-  <button class="sec" id="csv">Exporter en CSV</button>
-</footer>
-</div>
-</main>
 <div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 
@@ -176,7 +253,7 @@ $('save').onclick=()=>{
   if(w<0)return alert('La pause est plus longue que le temps passé.');
   const o={id:editId||Date.now().toString(36),date,start:$('start').value,end:$('end').value,pause:parseInt($('pause').value)||0,minutes:w};
   entries=entries.filter(x=>x.id!==o.id);entries.push(o);dirty.push(o.id);save();reset();render();sync();toast('✓ Journée enregistrée');
-  window.scrollTo({top:0,behavior:'smooth'});
+  tab('home');
 };
 
 function render(){
@@ -185,6 +262,14 @@ function render(){
   countTo($('grand'),tot);
   const days=new Set(entries.map(x=>x.date)).size;
   $('count').textContent=days+(days>1?' jours':' jour')+' · '+(Math.round(tot/6)/10)+' h décimales';
+  const td=today(),mk=td.slice(0,7),now=new Date();
+  const mon=new Date(now);mon.setDate(now.getDate()-((now.getDay()+6)%7));
+  const ws=mon.getFullYear()+'-'+p2(mon.getMonth()+1)+'-'+p2(mon.getDate());
+  const sum=f=>fmt(entries.filter(f).reduce((a,x)=>a+x.minutes,0));
+  $('mTot').textContent=sum(x=>x.date.startsWith(mk));
+  $('wTot').textContent=sum(x=>x.date>=ws&&x.date<=td);
+  const l=entries[0];
+  $('last').innerHTML=l?`<b>${new Date(l.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</b> · ${fmt(l.minutes)}<br><small>${l.start} → ${l.end} · pause ${l.pause} min</small>`:'Aucune journée pour l’instant';
   renderCal();
   if(!entries.length){setH($('list'),'<div class="card empty">Aucune journée enregistrée.</div>');return}
   const groups={};entries.forEach(x=>(groups[x.date.slice(0,7)]??=[]).push(x));
@@ -204,7 +289,7 @@ $('list').onclick=e=>{
 };
 function edit(id){
   const x=entries.find(y=>y.id===id);editId=x.id;$('date').value=x.date;$('start').value=x.start;$('end').value=x.end;$('pause').value=x.pause;
-  $('editBanner').style.display=$('cancel').style.display='block';$('save').textContent='Mettre à jour';calc();$('form').scrollIntoView({behavior:'smooth'});
+  $('editBanner').style.display=$('cancel').style.display='block';$('save').textContent='Mettre à jour';calc();tab('add');
 }
 
 $('csv').onclick=()=>{
@@ -221,6 +306,25 @@ function countTo(el,to){
   const t0=performance.now();
   (function f(t){const p=Math.min(1,(t-t0)/800);el.textContent=fmt(Math.round(from+(to-from)*(1-Math.pow(1-p,3))));if(p<1)requestAnimationFrame(f)})(t0);
 }
+const TABS=['home','add','cal','hist','me'];
+function tab(n){
+  TABS.forEach((t,i)=>{
+    $('t-'+t).classList.toggle('on',t===n);
+    document.querySelector(`[data-tab=${t}]`).classList.toggle('on',t===n);
+    if(t===n)$('ind').style.transform=`translateX(${i*100}%)`;
+  });
+  if(n==='cal'){popCal=true;renderCal()}
+  window.scrollTo({top:0});
+}
+$('nav').onclick=e=>{const b=e.target.closest('[data-tab]');if(b)tab(b.dataset.tab)};
+$('goAdd').onclick=()=>tab('add');
+function applyTheme(t){
+  document.documentElement.dataset.theme=t;
+  document.querySelector('meta[name=theme-color]').content=t==='dark'?'#080d19':'#2563eb';
+  $('theme').textContent=t==='dark'?'☀️':'🌙';
+}
+$('theme').onclick=()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';try{localStorage.setItem('theme',t)}catch(e){}applyTheme(t)};
+applyTheme(document.documentElement.dataset.theme);
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.remove('show');void t.offsetWidth;t.classList.add('show')}
 const p2=n=>String(n).padStart(2,'0');
 function renderCal(){
@@ -245,14 +349,15 @@ $('next').onclick=()=>{cal.setMonth(cal.getMonth()+1);selDay=null;popCal=true;re
 $('calGrid').onclick=e=>{const b=e.target.closest('.day');if(b){selDay=b.dataset.k;renderCal()}};
 $('calDetail').onclick=e=>{
   const m=e.target.closest('[data-e]');if(m)return edit(m.dataset.e);
-  if(e.target.closest('[data-new]')){reset();$('date').value=selDay;$('form').scrollIntoView({behavior:'smooth'})}
+  if(e.target.closest('[data-new]')){reset();tab('add');$('date').value=selDay}
 };
 const SB_URL='https://ujwgmquwvsvmkmcxbaiq.supabase.co',SB_KEY='sb_publishable_4d6F9EL9xA9sUuG_0SmGjA_5Q2823HG';
 const sb=window.supabase?supabase.createClient(SB_URL,SB_KEY):null;
 async function sync(){
   if(!sb)return;
   const {data:{session}}=await sb.auth.getSession();
-  $('gate').style.display=session?'none':'block';$('app').style.display=session?'block':'none';
+  $('gate').style.display=session?'none':'flex';$('app').style.display=session?'block':'none';
+  if(session)$('who').textContent=session.user.email;
   if(!session)return;
   try{
     // 1re connexion : tout l'historique local part sur Supabase
