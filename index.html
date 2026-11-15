@@ -50,6 +50,29 @@ h2{font-size:15px;margin:0 0 8px;display:flex;justify-content:space-between;colo
 .day.sel{box-shadow:0 0 0 2px var(--txt)}
 #calDetail{margin-top:12px;font-size:15px}
 #calDetail .box{border-top:1px solid var(--line);padding:10px 0}
+/* animations */
+@keyframes up{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes drift{from{background-position:0 50%}to{background-position:100% 50%}}
+@keyframes bump{40%{transform:scale(1.18)}}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,30px)}12%,85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,30px)}}
+.card{animation:up .55s cubic-bezier(.2,.8,.2,1) both}
+#app>:nth-child(2){animation-delay:.07s}#app>:nth-child(3){animation-delay:.14s}#app>:nth-child(4){animation-delay:.21s}
+.total{background-size:220% 220%;animation:up .55s cubic-bezier(.2,.8,.2,1) both,drift 8s ease-in-out infinite alternate}
+#list .card{animation:fade .35s ease-out both}
+button,.chip{transition:transform .15s,background-color .2s,box-shadow .2s,opacity .2s}
+button:active{transform:scale(.94)}
+.chip.on{transform:scale(1.06)}
+.day{transition:transform .15s,background-color .25s,box-shadow .2s}
+.day:active{transform:scale(.88)}
+.day.sel{transform:scale(1.08)}
+.pop .day{animation:pop .4s cubic-bezier(.3,1.4,.5,1) both;animation-delay:calc(var(--i)*14ms)}
+#calDetail .box{animation:fade .3s ease-out both}
+.bump{animation:bump .35s ease-out}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));background:var(--ok);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#toast.show{animation:toast 2s ease both}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .empty{text-align:center;color:var(--mut);padding:20px 0}
 footer{text-align:center}
 </style>
@@ -106,6 +129,7 @@ footer{text-align:center}
 </footer>
 </div>
 </main>
+<div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 
 <script>
@@ -131,7 +155,9 @@ function calc(){
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',+c.dataset.p===p&&$('pause').value!==''));
   if(!s||!e){$('res').textContent='–';return null}
   const w=worked(s,e,p);
-  $('res').textContent=fmt(w);$('res').classList.toggle('neg',w<0);
+  const r=$('res'),txt=fmt(w);
+  if(r.textContent!==txt){r.textContent=txt;r.classList.remove('bump');void r.offsetWidth;r.classList.add('bump')}
+  r.classList.toggle('neg',w<0);
   let brut=toMin(e)-toMin(s);if(brut<0)brut+=1440;
   $('detail').textContent=`${fmt(brut)} − ${p} min de pause`;
   return w;
@@ -149,27 +175,27 @@ $('save').onclick=()=>{
   if(!date||w===null)return alert('Remplis la date et les horaires.');
   if(w<0)return alert('La pause est plus longue que le temps passé.');
   const o={id:editId||Date.now().toString(36),date,start:$('start').value,end:$('end').value,pause:parseInt($('pause').value)||0,minutes:w};
-  entries=entries.filter(x=>x.id!==o.id);entries.push(o);dirty.push(o.id);save();reset();render();sync();
+  entries=entries.filter(x=>x.id!==o.id);entries.push(o);dirty.push(o.id);save();reset();render();sync();toast('✓ Journée enregistrée');
   window.scrollTo({top:0,behavior:'smooth'});
 };
 
 function render(){
   entries.sort((a,b)=>b.date.localeCompare(a.date)||b.start.localeCompare(a.start));
   const tot=entries.reduce((a,x)=>a+x.minutes,0);
-  $('grand').textContent=fmt(tot);
+  countTo($('grand'),tot);
   const days=new Set(entries.map(x=>x.date)).size;
   $('count').textContent=days+(days>1?' jours':' jour')+' · '+(Math.round(tot/6)/10)+' h décimales';
   renderCal();
-  if(!entries.length){$('list').innerHTML='<div class="card empty">Aucune journée enregistrée.</div>';return}
+  if(!entries.length){setH($('list'),'<div class="card empty">Aucune journée enregistrée.</div>');return}
   const groups={};entries.forEach(x=>(groups[x.date.slice(0,7)]??=[]).push(x));
-  $('list').innerHTML=Object.keys(groups).sort().reverse().map(k=>{
+  setH($('list'),Object.keys(groups).sort().reverse().map(k=>{
     const [y,m]=k.split('-');
     const name=new Date(y,m-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
     const sum=groups[k].reduce((a,x)=>a+x.minutes,0);
     return `<div class="card"><h2><span>${name}</span><span>${fmt(sum)}</span></h2>`+groups[k].map(x=>{
       const dt=new Date(x.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
       return `<div class="item"><div class="d">${dt}<small>${x.start} → ${x.end} · pause ${x.pause} min</small></div><span class="h">${fmt(x.minutes)}</span><button data-e="${x.id}" aria-label="Modifier">✏️</button><button data-d="${x.id}" aria-label="Supprimer">🗑️</button></div>`}).join('')+'</div>';
-  }).join('');
+  }).join(''));
 }
 $('list').onclick=e=>{
   const d=e.target.closest('[data-d]'),m=e.target.closest('[data-e]');
@@ -186,7 +212,16 @@ $('csv').onclick=()=>{
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.join('\n')],{type:'text/csv'}));a.download='mes-heures.csv';a.click();
 };
 
-let cal=new Date(),selDay=null;cal.setDate(1);
+let cal=new Date(),selDay=null,popCal=true,shown=0;cal.setDate(1);
+// ne réécrit le HTML que s'il change : évite de rejouer les animations à chaque synchro
+function setH(el,html){if(el._h!==html){el._h=html;el.innerHTML=html}}
+function countTo(el,to){
+  const from=shown;shown=to;
+  if(from===to||matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=fmt(to);return}
+  const t0=performance.now();
+  (function f(t){const p=Math.min(1,(t-t0)/800);el.textContent=fmt(Math.round(from+(to-from)*(1-Math.pow(1-p,3))));if(p<1)requestAnimationFrame(f)})(t0);
+}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.remove('show');void t.offsetWidth;t.classList.add('show')}
 const p2=n=>String(n).padStart(2,'0');
 function renderCal(){
   const y=cal.getFullYear(),m=cal.getMonth(),pre=y+'-'+p2(m+1)+'-';
@@ -197,15 +232,16 @@ function renderCal(){
   let h=['L','M','M','J','V','S','D'].map(d=>`<b class="wd">${d}</b>`).join('')+'<i></i>'.repeat(lead);
   for(let d=1;d<=n;d++){
     const k=pre+p2(d),e=by[k];
-    h+=`<button class="day${e?' on':''}${k===today()?' now':''}${k===selDay?' sel':''}" data-k="${k}">${d}${e?`<small>${fmt(e.reduce((a,x)=>a+x.minutes,0))}</small>`:''}</button>`;
+    h+=`<button class="day${e?' on':''}${k===today()?' now':''}${k===selDay?' sel':''}" data-k="${k}" style="--i:${d}">${d}${e?`<small>${fmt(e.reduce((a,x)=>a+x.minutes,0))}</small>`:''}</button>`;
   }
-  $('calGrid').innerHTML=h;
-  if(!selDay||!selDay.startsWith(pre)){$('calDetail').innerHTML='';return}
+  $('calGrid').classList.toggle('pop',popCal);popCal=false;
+  setH($('calGrid'),h);
+  if(!selDay||!selDay.startsWith(pre)){setH($('calDetail'),'');return}
   const day=new Date(selDay+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-  $('calDetail').innerHTML=by[selDay]?by[selDay].map(x=>`<div class="box"><b style="text-transform:capitalize">${day}</b><br>Horaires : ${x.start} → ${x.end}<br>Pause : ${x.pause} min<br>Heures travaillées : <b>${fmt(x.minutes)}</b> <button class="sec" data-e="${x.id}">✏️ Modifier</button></div>`).join(''):`<div class="box"><b style="text-transform:capitalize">${day}</b><br>Aucune journée enregistrée. <button class="sec" data-new>＋ Saisir</button></div>`;
+  setH($('calDetail'),by[selDay]?by[selDay].map(x=>`<div class="box"><b style="text-transform:capitalize">${day}</b><br>Horaires : ${x.start} → ${x.end}<br>Pause : ${x.pause} min<br>Heures travaillées : <b>${fmt(x.minutes)}</b> <button class="sec" data-e="${x.id}">✏️ Modifier</button></div>`).join(''):`<div class="box"><b style="text-transform:capitalize">${day}</b><br>Aucune journée enregistrée. <button class="sec" data-new>＋ Saisir</button></div>`);
 }
-$('prev').onclick=()=>{cal.setMonth(cal.getMonth()-1);selDay=null;renderCal()};
-$('next').onclick=()=>{cal.setMonth(cal.getMonth()+1);selDay=null;renderCal()};
+$('prev').onclick=()=>{cal.setMonth(cal.getMonth()-1);selDay=null;popCal=true;renderCal()};
+$('next').onclick=()=>{cal.setMonth(cal.getMonth()+1);selDay=null;popCal=true;renderCal()};
 $('calGrid').onclick=e=>{const b=e.target.closest('.day');if(b){selDay=b.dataset.k;renderCal()}};
 $('calDetail').onclick=e=>{
   const m=e.target.closest('[data-e]');if(m)return edit(m.dataset.e);
