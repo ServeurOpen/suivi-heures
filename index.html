@@ -86,11 +86,13 @@ h2{font-size:15px;margin:0 0 8px;display:flex;justify-content:space-between;colo
 
 /* barre d'onglets */
 #nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,480px);z-index:20;display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:22px 22px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.12)}
-#nav button{flex:1;background:none;border:0;color:var(--mut);font:inherit;font-size:11px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
+#nav button{flex:1;background:none;border:0;color:var(--mut);font:inherit;font-size:10px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
 #nav button span{font-size:22px;transition:transform .3s}
 #nav button.on{color:var(--acc);font-weight:600}
 #nav button.on span{animation:hop .45s}
-#ind{position:absolute;top:0;left:0;width:20%;height:3px;display:flex;justify-content:center;transition:transform .4s cubic-bezier(.3,1.2,.5,1)}
+.rw{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.rw:first-child{border-top:0}.rw.t{font-weight:700}.rw span:last-child{white-space:nowrap}
+#ind{position:absolute;top:0;left:0;width:calc(100%/6);height:3px;display:flex;justify-content:center;transition:transform .4s cubic-bezier(.3,1.2,.5,1)}
 #ind::before{content:"";width:34px;height:3px;border-radius:3px;background:var(--acc)}
 
 /* animations */
@@ -187,6 +189,24 @@ button:active{transform:scale(.94)}
   <div id="list"></div>
 </section>
 
+<section class="tab" id="t-sal">
+  <div class="card total">
+    <div class="nav" style="color:#fff"><button id="sPrev" aria-label="Mois précédent" style="background:rgba(255,255,255,.2);color:#fff">‹</button><span id="salTitle"></span><button id="sNext" aria-label="Mois suivant" style="background:rgba(255,255,255,.2);color:#fff">›</button></div>
+    <small>Net estimé avant impôt</small>
+    <div class="big" id="salNet">0,00 €</div>
+    <small id="salSub"></small>
+  </div>
+  <div class="card" id="salRows"></div>
+  <div class="card">
+    <h2><span>Mes réglages</span></h2>
+    <div class="row">
+      <div><label for="rate">Taux horaire brut (€)</label><input type="number" id="rate" step="0.01" min="0" inputmode="decimal"></div>
+      <div><label for="prime">Prime habillage (€/jour)</label><input type="number" id="prime" step="0.01" min="0" inputmode="decimal"></div>
+    </div>
+    <p style="color:var(--mut);font-size:13px;margin:12px 0 0">Estimation indicative d'après ta fiche de paie : IFM 10 %, congés payés 10 %, cotisations salariales ≈ 21,67 %. Majorations de nuit et prélèvement à la source non inclus. Le compteur repart à zéro chaque 1<sup>er</sup> du mois.</p>
+  </div>
+</section>
+
 <section class="tab" id="t-me">
   <div class="card">
     <h2><span>Mon compte</span></h2>
@@ -203,6 +223,7 @@ button:active{transform:scale(.94)}
   <button data-tab="add"><span>➕</span>Pointer</button>
   <button data-tab="cal"><span>📅</span>Calendrier</button>
   <button data-tab="hist"><span>📋</span>Historique</button>
+  <button data-tab="sal"><span>💶</span>Salaire</button>
   <button data-tab="me"><span>👤</span>Compte</button>
 </nav>
 </div>
@@ -270,7 +291,7 @@ function render(){
   $('wTot').textContent=sum(x=>x.date>=ws&&x.date<=td);
   const l=entries[0];
   $('last').innerHTML=l?`<b>${new Date(l.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</b> · ${fmt(l.minutes)}<br><small>${l.start} → ${l.end} · pause ${l.pause} min</small>`:'Aucune journée pour l’instant';
-  renderCal();
+  renderCal();renderSal();
   if(!entries.length){setH($('list'),'<div class="card empty">Aucune journée enregistrée.</div>');return}
   const groups={};entries.forEach(x=>(groups[x.date.slice(0,7)]??=[]).push(x));
   setH($('list'),Object.keys(groups).sort().reverse().map(k=>{
@@ -311,7 +332,7 @@ function countTo(el,to){
   const t0=performance.now();
   (function f(t){const p=Math.min(1,(t-t0)/800);el.textContent=fmt(Math.round(from+(to-from)*(1-Math.pow(1-p,3))));if(p<1)requestAnimationFrame(f)})(t0);
 }
-const TABS=['home','add','cal','hist','me'];
+const TABS=['home','add','cal','hist','sal','me'];
 function tab(n){
   TABS.forEach((t,i)=>{
     $('t-'+t).classList.toggle('on',t===n);
@@ -357,6 +378,27 @@ $('calDetail').onclick=e=>{
   const d=e.target.closest('[data-d]');if(d)return del(d.dataset.d);
   if(e.target.closest('[data-new]')){reset();tab('add');$('date').value=selDay}
 };
+// estimation de salaire : uniquement les heures du mois affiché (1er → dernier jour), repart à 0 chaque mois
+let salM=new Date();salM.setDate(1);
+let cfg={rate:12.36,prime:0.41};try{Object.assign(cfg,JSON.parse(localStorage.getItem(KEY+'-cfg')||'{}'))}catch(e){}
+const eur=n=>n.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+function renderSal(){
+  const pre=salM.getFullYear()+'-'+p2(salM.getMonth()+1)+'-';
+  const es=entries.filter(x=>x.date.startsWith(pre));
+  const min=es.reduce((a,x)=>a+x.minutes,0),days=new Set(es.map(x=>x.date)).size;
+  const base=min/60*cfg.rate,prime=days*cfg.prime,b=base+prime,ifm=b*.1,cp=(b+ifm)*.1,brut=b+ifm+cp,cot=brut*.2167,net=brut-cot;
+  $('salTitle').textContent=salM.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  $('salNet').textContent=eur(net);
+  $('salSub').textContent=`${fmt(min)} sur ${days} jour${days>1?'s':''} · brut ${eur(brut)}`;
+  const r=(l,v,c)=>`<div class="rw${c?' '+c:''}"><span>${l}</span><span>${v}</span></div>`;
+  setH($('salRows'),r('Heures travaillées',fmt(min))+r(`Salaire de base (${cfg.rate.toFixed(2).replace('.',',')} €/h)`,eur(base))+r(`Prime d'habillage (${days} j)`,eur(prime))+r('Indemnité de fin de mission (10 %)',eur(ifm))+r('Congés payés (10 %)',eur(cp))+r('Salaire brut estimé',eur(brut),'t')+r('Cotisations salariales (≈ 21,67 %)','− '+eur(cot))+r('Net estimé avant impôt',eur(net),'t'));
+}
+$('sPrev').onclick=()=>{salM.setMonth(salM.getMonth()-1);renderSal()};
+$('sNext').onclick=()=>{salM.setMonth(salM.getMonth()+1);renderSal()};
+$('rate').value=cfg.rate;$('prime').value=cfg.prime;
+['rate','prime'].forEach(i=>$(i).addEventListener('input',()=>{
+  cfg[i]=parseFloat($(i).value)||0;try{localStorage.setItem(KEY+'-cfg',JSON.stringify(cfg))}catch(e){}renderSal();
+}));
 const SB_URL='https://ujwgmquwvsvmkmcxbaiq.supabase.co',SB_KEY='sb_publishable_4d6F9EL9xA9sUuG_0SmGjA_5Q2823HG';
 const sb=window.supabase?supabase.createClient(SB_URL,SB_KEY):null;
 async function sync(){
