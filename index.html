@@ -394,6 +394,19 @@ $('logout').onclick=async()=>{
 };
 mode();
 addEventListener('online',sync);
+// mises à jour automatiques : si une nouvelle version du site est publiée, l'app se recharge toute seule
+let ver;
+async function checkUpdate(){
+  try{
+    const r=await fetch('index.html',{method:'HEAD',cache:'no-store'});
+    const v=r.headers.get('etag')||r.headers.get('last-modified');
+    if(!v)return;
+    if(ver&&ver!==v&&!/INPUT|SELECT/.test(document.activeElement.tagName))return location.reload();
+    if(!ver)ver=v;
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
+setInterval(checkUpdate,300000);checkUpdate();
 reset();render();sync();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
