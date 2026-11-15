@@ -23,7 +23,7 @@ h1{font-size:22px;margin:18px 0 12px}
 .total .big{font-size:44px;font-weight:700;letter-spacing:-1px}
 .total small{opacity:.85}
 label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
-input[type=date],input[type=time],input[type=number]{width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--txt)}
+input[type=date],input[type=time],input[type=number],input[type=email],input[type=password]{width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--txt)}
 .row{display:flex;gap:10px}.row>div{flex:1}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .chip{border:1px solid var(--line);background:var(--bg);color:var(--txt);padding:8px 12px;border-radius:999px;font:inherit;font-size:14px}
@@ -71,17 +71,28 @@ footer{text-align:center}
 
 <div id="list"></div>
 
+<div class="card" id="auth" style="display:none">
+  <h2><span>☁️ Synchronisation</span></h2>
+  <input type="email" id="em" placeholder="E-mail" autocomplete="username">
+  <input type="password" id="pw" placeholder="Mot de passe" autocomplete="current-password" style="margin-top:8px">
+  <button class="main" id="login">Se connecter</button>
+</div>
+<div id="logged" style="display:none;text-align:center;color:var(--mut);font-size:14px"><span id="sync"></span> · <button class="sec" id="logout">Déconnexion</button></div>
+
 <footer>
   <button class="sec" id="csv">Exporter en CSV</button>
 </footer>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 
 <script>
 const KEY='suivi-heures-v1';
 const $=id=>document.getElementById(id);
 let entries=[];try{entries=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){}
 let editId=null;
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(entries))}catch(e){}};
+const ld=k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}};
+let dirty=ld(KEY+'-dirty'),deleted=ld(KEY+'-del'); // ids à envoyer / à supprimer sur Supabase
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(entries));localStorage.setItem(KEY+'-dirty',JSON.stringify(dirty));localStorage.setItem(KEY+'-del',JSON.stringify(deleted))}catch(e){}};
 const toMin=t=>{const [h,m]=t.split(':').map(Number);return h*60+m};
 const fmt=m=>{const s=m<0?'-':'';m=Math.abs(m);return s+Math.floor(m/60)+'h'+String(m%60).padStart(2,'0')};
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -115,7 +126,7 @@ $('save').onclick=()=>{
   if(!date||w===null)return alert('Remplis la date et les horaires.');
   if(w<0)return alert('La pause est plus longue que le temps passé.');
   const o={id:editId||Date.now().toString(36),date,start:$('start').value,end:$('end').value,pause:parseInt($('pause').value)||0,minutes:w};
-  entries=entries.filter(x=>x.id!==o.id);entries.push(o);save();reset();render();
+  entries=entries.filter(x=>x.id!==o.id);entries.push(o);dirty.push(o.id);save();reset();render();sync();
   window.scrollTo({top:0,behavior:'smooth'});
 };
 
@@ -138,7 +149,7 @@ function render(){
 }
 $('list').onclick=e=>{
   const d=e.target.closest('[data-d]'),m=e.target.closest('[data-e]');
-  if(d&&confirm('Supprimer cette journée ?')){entries=entries.filter(x=>x.id!==d.dataset.d);save();render()}
+  if(d&&confirm('Supprimer cette journée ?')){const id=d.dataset.d;entries=entries.filter(x=>x.id!==id);dirty=dirty.filter(x=>x!==id);deleted.push(id);save();render();sync()}
   if(m){const x=entries.find(y=>y.id===m.dataset.e);editId=x.id;$('date').value=x.date;$('start').value=x.start;$('end').value=x.end;$('pause').value=x.pause;
     $('editBanner').style.display=$('cancel').style.display='block';$('save').textContent='Mettre à jour';calc();window.scrollTo({top:0,behavior:'smooth'})}
 };
@@ -148,7 +159,33 @@ $('csv').onclick=()=>{
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.join('\n')],{type:'text/csv'}));a.download='mes-heures.csv';a.click();
 };
 
-reset();render();
+const SB_URL='https://ujwgmquwvsvmkmcxbaiq.supabase.co',SB_KEY='sb_publishable_4d6F9EL9xA9sUuG_0SmGjA_5Q2823HG';
+const sb=window.supabase?supabase.createClient(SB_URL,SB_KEY):null;
+async function sync(){
+  if(!sb)return;
+  const {data:{session}}=await sb.auth.getSession();
+  $('auth').style.display=session?'none':'block';$('logged').style.display=session?'block':'none';
+  if(!session)return;
+  try{
+    // 1re connexion : tout l'historique local part sur Supabase
+    if(!localStorage.getItem(KEY+'-mig')){dirty=entries.map(x=>x.id);localStorage.setItem(KEY+'-mig','1')}
+    if(deleted.length){const {error}=await sb.from('heures').delete().in('id',deleted);if(error)throw error;deleted=[]}
+    const up=entries.filter(x=>dirty.includes(x.id)).map(({id,date,start,end,pause,minutes})=>({id,date,start,end,pause,minutes}));
+    if(up.length){const {error}=await sb.from('heures').upsert(up);if(error)throw error}
+    dirty=[];
+    const {data,error}=await sb.from('heures').select('id,date,start,end,pause,minutes');if(error)throw error;
+    entries=data;save();render();$('sync').textContent='☁️ Synchronisé';
+  }catch(e){save();$('sync').textContent='⚠️ Synchro impossible, réessai plus tard'}
+}
+$('login').onclick=async()=>{
+  if(!sb)return alert('Pas de connexion internet.');
+  const {error}=await sb.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});
+  if(error)return alert('Connexion impossible : '+error.message);
+  sync();
+};
+$('logout').onclick=async()=>{await sb.auth.signOut();sync()};
+addEventListener('online',sync);
+reset();render();sync();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
