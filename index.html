@@ -204,6 +204,8 @@ button:active{transform:scale(.94)}
       <div><label for="rate">Taux horaire brut (€)</label><input type="number" id="rate" step="0.01" min="0" inputmode="decimal"></div>
       <div><label for="prime">Prime habillage (€/jour)</label><input type="number" id="prime" step="0.01" min="0" inputmode="decimal"></div>
     </div>
+    <label for="night">Majoration 5h-6h et 20h-21h (%)</label>
+    <input type="number" id="night" step="1" min="0" inputmode="decimal">
   </div>
 </section>
 
@@ -380,23 +382,30 @@ $('calDetail').onclick=e=>{
 };
 // estimation de salaire : uniquement les heures du mois affiché (1er → dernier jour), repart à 0 chaque mois
 let salM=new Date();salM.setDate(1);
-let cfg={rate:12.36,prime:0.41};try{Object.assign(cfg,JSON.parse(localStorage.getItem(KEY+'-cfg')||'{}'))}catch(e){}
+// minutes passées entre 5h-6h et 20h-21h (majorées) ; gère les journées qui passent minuit. La pause n'est pas retirée : on ne sait pas quand elle tombe.
+function nightMin(x){
+  const s=toMin(x.start);let e=toMin(x.end);if(e<s)e+=1440;
+  let t=0;for(const [a,b] of [[300,360],[1200,1260]])for(const k of [0,1440])t+=Math.max(0,Math.min(e,b+k)-Math.max(s,a+k));
+  return t;
+}
+let cfg={rate:12.36,prime:0.41,night:25};try{Object.assign(cfg,JSON.parse(localStorage.getItem(KEY+'-cfg')||'{}'))}catch(e){}
 const eur=n=>n.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
 function renderSal(){
   const pre=salM.getFullYear()+'-'+p2(salM.getMonth()+1)+'-';
   const es=entries.filter(x=>x.date.startsWith(pre));
   const min=es.reduce((a,x)=>a+x.minutes,0),days=new Set(es.map(x=>x.date)).size;
-  const base=min/60*cfg.rate,prime=days*cfg.prime,b=base+prime,ifm=b*.1,cp=(b+ifm)*.1,brut=b+ifm+cp,cot=brut*.2167,net=brut-cot;
+  const nm=es.reduce((a,x)=>a+nightMin(x),0),majo=nm/60*cfg.rate*cfg.night/100;
+  const base=min/60*cfg.rate,prime=days*cfg.prime,b=base+majo+prime,ifm=b*.1,cp=(b+ifm)*.1,brut=b+ifm+cp,cot=brut*.2167,net=brut-cot;
   $('salTitle').textContent=salM.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
   $('salNet').textContent=eur(net);
   $('salSub').textContent=`${fmt(min)} sur ${days} jour${days>1?'s':''} · brut ${eur(brut)}`;
   const r=(l,v,c)=>`<div class="rw${c?' '+c:''}"><span>${l}</span><span>${v}</span></div>`;
-  setH($('salRows'),r('Heures travaillées',fmt(min))+r(`Salaire de base (${cfg.rate.toFixed(2).replace('.',',')} €/h)`,eur(base))+r(`Prime d'habillage (${days} j)`,eur(prime))+r('Indemnité de fin de mission (10 %)',eur(ifm))+r('Congés payés (10 %)',eur(cp))+r('Salaire brut estimé',eur(brut),'t')+r('Cotisations salariales (≈ 21,67 %)','− '+eur(cot))+r('Net estimé avant impôt',eur(net),'t'));
+  setH($('salRows'),r('Heures travaillées',fmt(min))+r(`Salaire de base (${cfg.rate.toFixed(2).replace('.',',')} €/h)`,eur(base))+r(`Majorations ${cfg.night} % (${fmt(nm)} de 5h-6h / 20h-21h)`,eur(majo))+r(`Prime d'habillage (${days} j)`,eur(prime))+r('Indemnité de fin de mission (10 %)',eur(ifm))+r('Congés payés (10 %)',eur(cp))+r('Salaire brut estimé',eur(brut),'t')+r('Cotisations salariales (≈ 21,67 %)','− '+eur(cot))+r('Net estimé avant impôt',eur(net),'t'));
 }
 $('sPrev').onclick=()=>{salM.setMonth(salM.getMonth()-1);renderSal()};
 $('sNext').onclick=()=>{salM.setMonth(salM.getMonth()+1);renderSal()};
-$('rate').value=cfg.rate;$('prime').value=cfg.prime;
-['rate','prime'].forEach(i=>$(i).addEventListener('input',()=>{
+$('rate').value=cfg.rate;$('prime').value=cfg.prime;$('night').value=cfg.night;
+['rate','prime','night'].forEach(i=>$(i).addEventListener('input',()=>{
   cfg[i]=parseFloat($(i).value)||0;try{localStorage.setItem(KEY+'-cfg',JSON.stringify(cfg))}catch(e){}renderSal();
 }));
 const SB_URL='https://ujwgmquwvsvmkmcxbaiq.supabase.co',SB_KEY='sb_publishable_4d6F9EL9xA9sUuG_0SmGjA_5Q2823HG';
