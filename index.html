@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Pointage intérim particulier</title>
 <meta name="theme-color" content="#2563eb">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,6 +21,7 @@ try{document.documentElement.dataset.theme=localStorage.getItem('theme')||(match
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;transition:background-color .4s,color .4s}
 h1{font-size:24px;margin:0}
+html{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}
 
 /* fond animé */
 #bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
@@ -441,6 +442,8 @@ $('logout').onclick=async()=>{
 };
 mode();
 addEventListener('online',sync);
+// pas de zoom (Safari iOS ignore la balise viewport : on bloque le pincement à la main)
+['gesturestart','gesturechange'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
 // mises à jour automatiques : si une nouvelle version du site est publiée, l'app se recharge toute seule
 let ver;
 async function checkUpdate(){
